@@ -49,8 +49,8 @@ A real-time social party game inspired by Quiplash, built with Node.js, Express,
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/multiplayer-party-game.git
-   cd multiplayer-party-game
+   git clone https://github.com/mmknisali/gameoriginal
+   cd gameoriginal
    ```
 
 2. **Install dependencies**
@@ -115,9 +115,9 @@ The server automatically detects your local IP addresses. Share these with playe
 
 ```
 🌐 Network Access URLs:
-   📡 http://192.168.1.13:3000 (for all devices on the same network)
-   👑 Host: http://192.168.1.13:3000/host.html
-   🎯 Player: http://192.168.1.13:3000
+   📡 http://'ipadress':3000 (for all devices on the same network)
+   👑 Host: http://'ipadress':3000/host.html
+   🎯 Player: http://'ipadress':3000
 ```
 
 ### mDNS Service Discovery
