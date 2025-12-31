@@ -329,4 +329,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Ready to laugh?** 🎲 Start your multiplayer party game now!
 
-*Made with ❤️
+*Made with ❤️*
