@@ -57,19 +57,25 @@
         <div id="gameOverBanner" style="display:none; text-align:center; margin-top:100px; font-size:3em; font-weight:bold;">GAME OVER!</div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+     <script src="/socket.io/socket.io.js"></script>
+    <script src="config.js"></script>
     <script>
-        const socket = io();
+        const socket = io(SERVER_URL || undefined);
         let roomCode = null;
         let gameOverInterval = null;
         let timerInterval = null;
 
         socket.on('connect', () => {
-            // Socket connected
+            console.log('Connected to server');
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('Connection failed:', err);
+            alert('Failed to connect to server. Check SERVER_URL in config.js or server status.');
         });
 
         socket.on('disconnect', () => {
-            // Socket disconnected
+            console.log('Disconnected from server');
         });
 
         // Timer handling

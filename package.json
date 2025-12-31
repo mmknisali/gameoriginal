@@ -16,7 +16,8 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "excalibur": "^0.31.0"
+    "excalibur": "^0.31.0",
+    "firebase-tools": "^15.1.0"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
