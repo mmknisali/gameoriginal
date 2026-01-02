@@ -1,11 +1,6 @@
 const { v4: uuidv4 } = require('uuid');
 const http = require('http');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const NodeCache = require('node-cache');
-
-// Google AI setup (API key from environment)
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || 'your-api-key');
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 // Global cache for AI prompts (TTL: 1 hour)
 const promptCache = new NodeCache({ stdTTL: 3600 });
@@ -218,7 +213,7 @@ class Game {
       // Check cache first
       let aiText = promptCache.get(cacheKey);
       if (!aiText) {
-        aiText = await fetchPromptsFromGoogleAI(level);
+        aiText = await fetchPromptsFromLocalAI(level);
         // Cache the raw response
         if (aiText) {
           promptCache.set(cacheKey, aiText);
@@ -801,19 +796,50 @@ module.exports = GameManager;
 
 // --- Bot answer generation helpers ---
 
-async function generateBotAnswer(prompt, cefrLevel = 'B1') {
-  try {
-    const aiPrompt = `Generate a short, funny answer to this prompt: "${prompt}". Use vocabulary appropriate for CEFR level ${cefrLevel}. Keep it under 50 characters.`;
+function generateBotAnswer(prompt, cefrLevel = 'B1') {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      model: 'llama3.2:3b',
+      prompt: `Generate a short, funny answer to this prompt: "${prompt}". Use vocabulary appropriate for CEFR level ${cefrLevel}. Keep it under 50 characters.`,
+      stream: false,
+    });
 
-    const result = await model.generateContent(aiPrompt);
-    const response = result.response;
-    const text = response.text().trim();
+    const options = {
+      hostname: process.env.OLLAMA_HOST || 'localhost',
+      port: 11434,
+      path: '/api/generate',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    };
 
-    return text || 'Funny answer!';
-  } catch (err) {
-    console.error('Google AI bot answer error:', err);
-    return 'Funny answer!';
-  }
+    const req = http.request(options, (res) => {
+      let body = '';
+      res.on('data', (chunk) => body += chunk.toString());
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          if (json && typeof json.response === 'string') {
+            resolve(json.response.trim() || 'Funny answer!');
+          } else {
+            resolve('Funny answer!');
+          }
+        } catch (err) {
+          resolve('Funny answer!');
+        }
+      });
+    });
+
+    req.on('error', () => resolve('Funny answer!'));
+    req.setTimeout(5000, () => {
+      req.destroy();
+      resolve('Funny answer!');
+    });
+    req.write(payload);
+    req.end();
+  });
 }
 
 // --- Local AI integration helpers ---
@@ -825,29 +851,58 @@ async function generateBotAnswer(prompt, cefrLevel = 'B1') {
  * or a newline-separated list of prompts. The Game class will normalize the
  * result in loadPromptsFromAIIfNeeded().
  */
-async function fetchPromptsFromGoogleAI(cefrLevel = 'B1') {
-  try {
-    const prompt = `Generate 20 absurd, hilarious Quiplash-style prompts. Each must be a short, ridiculous fill-in-the-blank question or statement ending with '______' for players to fill in, like 'The worst ice cream flavor: ______' or 'A terrible name for a cat: ______'. Make them funny and over-the-top. Use vocabulary appropriate for CEFR level ${cefrLevel}. Return ONLY a valid JSON array of strings, e.g., ["prompt1", "prompt2"]. No extra text or explanations.`;
+function fetchPromptsFromLocalAI(cefrLevel = 'B1') {
+  const payload = JSON.stringify({
+    model: 'llama3.2:3b',
+    prompt:
+      `You are helping generate funny party-game prompts similar to Quiplash at CEFR English level ${cefrLevel}. ` +
+      'Return ONLY a JSON array of 20 short prompt strings, no explanations, no extra text.',
+    stream: false,
+  });
 
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text().trim();
+  const options = {
+    hostname: process.env.OLLAMA_HOST || 'localhost',
+    port: 11434,
+    path: '/api/generate',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload),
+    },
+  };
 
-    // Try to parse as JSON
-    try {
-      const parsed = JSON.parse(text);
-      if (Array.isArray(parsed)) {
-        return JSON.stringify(parsed); // Return as string for consistency
-      }
-    } catch (e) {
-      // If not JSON, assume it's a list and parse
-      const lines = text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
-      return JSON.stringify(lines.slice(0, 20));
-    }
+  return new Promise((resolve, reject) => {
+    const req = http.request(options, (res) => {
+      let body = '';
 
-    return JSON.stringify(['A terrible name for a dog: ______', 'The worst superpower: ______']); // Fallback
-  } catch (err) {
-    console.error('Google AI error:', err);
-    return JSON.stringify(['A terrible name for a dog: ______', 'The worst superpower: ______']); // Fallback
-  }
+      res.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          if (json && typeof json.response === 'string') {
+            resolve(json.response.trim());
+          } else {
+            reject(new Error('Unexpected response shape from local AI.'));
+          }
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      reject(err);
+    });
+
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error('AI request timeout after 10 seconds'));
+    });
+
+    req.write(payload);
+    req.end();
+  });
 }

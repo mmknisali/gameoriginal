@@ -1,0 +1,9 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "main": "server.js",
+  "dependencies": {
+    "uuid": "^9.0.1",
+    "node-cache": "^5.1.2"
+  }
+}

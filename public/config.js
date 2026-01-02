@@ -1,3 +1,3 @@
 // Config for server URL
-// Update with your deployed server URL
-const SERVER_URL = 'http://localhost:3000'; // For local testing
+// Update with your Netlify site URL + function path
+const SERVER_URL = 'https://your-netlify-site.netlify.app/.netlify/functions/server';
